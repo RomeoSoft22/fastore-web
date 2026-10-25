@@ -1,0 +1,153 @@
+<div class="contenedor pagina-carrito">
+  @if (enviado(); as r) {
+    <div class="vacio exito">
+      <span class="exito-icono"><app-icono nombre="check" [tamano]="40" /></span>
+      <h1>¡Cotización generada!</h1>
+      <p>Tu código de cotización es</p>
+      <p class="codigo-cotizacion">{{ r.cotizacion }}</p>
+      <p>Te abrimos WhatsApp para enviarnos el código. Si no se abrió, toca el botón. Vigente hasta el {{ r.vence }}.</p>
+      <a class="btn whatsapp grande" [href]="r.whatsapp_url" target="_blank" rel="noopener"><app-icono nombre="whatsapp" [tamano]="18" /> Enviar código por WhatsApp</a>
+      <a class="btn" [routerLink]="['/cotizacion', r.cotizacion]"><app-icono nombre="ojo" [tamano]="18" /> Ver cotización</a>
+      <a routerLink="/tienda" class="enlace">Seguir comprando</a>
+    </div>
+  } @else if (!carrito.items().length) {
+    <div class="vacio pagina-vacia">
+      <app-icono nombre="carrito" [tamano]="56" />
+      <h1>Tu carrito está vacío</h1>
+      <p>Agrega productos y finaliza tu pedido por WhatsApp.</p>
+      <a routerLink="/tienda" class="btn primario">Ver productos</a>
+    </div>
+  } @else {
+    <h1>Finalizar pedido</h1>
+    <div class="carrito-grilla">
+      <section class="panel">
+        <h2>Productos <small class="tenue">({{ carrito.cantidad() }})</small></h2>
+        <ul class="lista-carrito">
+          @for (i of carrito.items(); track i.id) {
+            <li>
+              <a [routerLink]="['/producto', i.slug]"><img [src]="i.imagen || 'img/marca/icono.png'" [alt]="i.nombre" width="88" height="88" /></a>
+              <div class="lista-carrito-info">
+                <a [routerLink]="['/producto', i.slug]">{{ i.nombre }}</a>
+                <small class="tenue">{{ i.precio | soles }} c/u</small>
+                <div class="cantidad">
+                  <button type="button" (click)="carrito.cambiar(i.id, i.cantidad - 1)" aria-label="Quitar uno"><app-icono nombre="menos" [tamano]="14" /></button>
+                  <b>{{ i.cantidad }}</b>
+                  <button type="button" (click)="carrito.cambiar(i.id, i.cantidad + 1)" aria-label="Agregar uno"><app-icono nombre="mas" [tamano]="14" /></button>
+                </div>
+              </div>
+              <div class="lista-carrito-precio">
+                <strong>{{ i.precio * i.cantidad | soles }}</strong>
+                <button type="button" class="btn-icono" (click)="carrito.quitar(i.id)" [attr.aria-label]="'Quitar ' + i.nombre"><app-icono nombre="basura" [tamano]="18" /></button>
+              </div>
+            </li>
+          }
+        </ul>
+      </section>
+
+      <form class="panel entrega" (submit)="$event.preventDefault(); enviar()" novalidate>
+        <h2>Datos de entrega</h2>
+        <label>Nombre completo
+          <input name="nombre" autocomplete="name" required [(ngModel)]="form.nombre" (blur)="cambio('nombre')" />
+        </label>
+        <label>Celular (WhatsApp)
+          <input name="celular" type="tel" inputmode="tel" autocomplete="tel" placeholder="9XX XXX XXX" required
+            [(ngModel)]="form.celular" (blur)="cambio('celular')" />
+        </label>
+        <fieldset class="opciones-entrega">
+          <legend>Lugar de entrega</legend>
+          @for (e of config()?.entregas ?? []; track e.clave) {
+            <label class="opcion-entrega" [class.elegida]="entregaElegida() === e.clave">
+              <input type="radio" name="entrega" [value]="e.clave" [(ngModel)]="form.entrega" (ngModelChange)="cambio('entrega')" />
+              <span><b>{{ e.nombre }}</b><small>{{ e.detalle }}</small></span>
+            </label>
+          }
+        </fieldset>
+
+        @switch (entregaElegida()) {
+          @case ('estacion') {
+            <label>Estación del tren
+              <select name="estacion" [(ngModel)]="form.estacion" (change)="cambio('estacion')">
+                <option value="" disabled>Elige una estación</option>
+                @for (e of config()?.estaciones ?? []; track e) { <option [value]="e">Estación {{ e }}</option> }
+              </select>
+            </label>
+          }
+          @case ('local') {
+            <label>Dirección de entrega
+              <input name="direccion" autocomplete="street-address" placeholder="Calle, número, referencia" [(ngModel)]="form.direccion" (blur)="cambio('direccion')" />
+            </label>
+            <label>Distrito
+              <input name="ciudad" placeholder="Ej. Villa El Salvador" [(ngModel)]="form.ciudad" (blur)="cambio('ciudad')" />
+            </label>
+            <p class="nota-entrega"><app-icono nombre="camion" [tamano]="18" /><span>El envío tiene un costo adicional según el distrito y <b>se paga al momento de la entrega</b>. No está incluido en el total.</span></p>
+          }
+          @case ('nacional') {
+            <div class="dos-columnas">
+              <label>Ciudad
+                <input name="ciudad" placeholder="Ej. Arequipa" [(ngModel)]="form.ciudad" (blur)="cambio('ciudad')" />
+              </label>
+              <label>DNI de quien recoge
+                <input name="dni" inputmode="numeric" maxlength="12" placeholder="8 dígitos" [(ngModel)]="form.dni" (blur)="cambio('dni')" />
+              </label>
+            </div>
+            <label>Agencia Shalom
+              <input name="direccion" placeholder="Nombre o dirección de la agencia" [(ngModel)]="form.direccion" (blur)="cambio('direccion')" />
+            </label>
+            <p class="nota-entrega"><app-icono nombre="camion" [tamano]="18" /><span>Enviamos por <b>Shalom</b>. El flete se paga al recoger en la agencia o se coordina por WhatsApp.</span></p>
+          }
+        }
+
+        <label>Forma de pago
+          <select name="pago" required [(ngModel)]="form.pago" (change)="cambio('pago')">
+            <option value="" disabled>Elige</option>
+            @for (p of config()?.pagos ?? []; track p) { <option [value]="p">{{ p }}</option> }
+          </select>
+        </label>
+
+        <div class="cupon-cliente">
+          @if (cupon(); as c) {
+            <div class="cupon-aplicado">
+              <app-icono nombre="etiqueta" [tamano]="18" />
+              <span><b>{{ c.codigo }}</b> · {{ c.etiqueta }}</span>
+              <button type="button" class="enlace-peligro" (click)="quitarCupon()">Quitar</button>
+            </div>
+          } @else {
+            <label>¿Tienes un código de descuento?
+              <span class="campo-boton">
+                <input name="codigo" autocomplete="off" placeholder="Ej. FAS-AB12C" [ngModel]="codigo()" (ngModelChange)="codigo.set($event)"
+                  (keydown.enter)="$event.preventDefault(); aplicarCupon()" />
+                <button type="button" class="btn" (click)="aplicarCupon()" [disabled]="!codigo().trim()">Aplicar</button>
+              </span>
+            </label>
+            @if (errorCupon()) { <p class="error-texto pequeno" role="alert">{{ errorCupon() }}</p> }
+          }
+        </div>
+
+        <div class="resumen-total">
+          <div><span>Subtotal</span><span>{{ carrito.total() | soles }}</span></div>
+          @if (descuento()) { <div><span>Descuento</span><span class="verde">− {{ descuento() | soles }}</span></div> }
+          <div><span>Entrega</span>
+            @switch (entregaElegida()) {
+              @case ('local') { <span class="tenue">Se paga al recibir</span> }
+              @case ('nacional') { <span class="tenue">Flete Shalom aparte</span> }
+              @default { <span class="verde">Gratis</span> }
+            }
+          </div>
+          <div class="total"><span>Total</span><strong>{{ totalFinal() | soles }}</strong></div>
+        </div>
+
+        <label class="casilla aceptacion">
+          <input type="checkbox" name="acepta" [(ngModel)]="acepta" />
+          <span>Acepto los <a routerLink="/legal/terminos" target="_blank">términos y condiciones</a> y la
+            <a routerLink="/legal/privacidad" target="_blank">política de privacidad</a>, y autorizo el uso de mis datos para gestionar mi pedido.</span>
+        </label>
+
+        @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+        <button type="submit" class="btn whatsapp grande ancho" [disabled]="enviando()">
+          <app-icono nombre="whatsapp" [tamano]="20" /> {{ enviando() ? 'Generando cotización…' : 'Generar cotización y enviar por WhatsApp' }}
+        </button>
+        <p class="tenue pequeno">Generamos tu cotización con un código y la confirmamos por WhatsApp. No cobramos nada en la web.</p>
+      </form>
+    </div>
+  }
+</div>

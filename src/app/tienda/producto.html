@@ -1,0 +1,129 @@
+@if (noExiste()) {
+  <div class="contenedor vacio pagina-vacia">
+    <app-icono nombre="caja" [tamano]="56" />
+    <h1>Este producto ya no está disponible</h1>
+    <p>Puede que lo hayamos retirado del catálogo. Mira otros productos parecidos.</p>
+    <a routerLink="/tienda" class="btn primario">Ir al catálogo</a>
+  </div>
+} @else if (producto(); as p) {
+  <div class="contenedor">
+    <nav class="migas" aria-label="Ruta">
+      <a routerLink="/">Inicio</a><span>/</span>
+      @if (p.categoria) { <a [routerLink]="['/categoria', p.categoria.slug]">{{ p.categoria.nombre }}</a><span>/</span> }
+      <b>{{ p.nombre }}</b>
+    </nav>
+
+    <article class="ficha">
+      <div class="galeria">
+        <div class="galeria-principal" (touchstart)="inicioToque($event)" (touchend)="finToque($event)">
+          @if (imagenes().length) {
+            @for (img of imagenes(); track img.id; let i = $index) {
+              <img [src]="img.url" [alt]="p.nombre + ' – foto ' + (i + 1)" [class.visible]="i === foto()"
+                [attr.width]="img.ancho" [attr.height]="img.alto" [attr.loading]="i === 0 ? 'eager' : 'lazy'" />
+            }
+          } @else {
+            <span class="sin-foto"><app-icono nombre="imagen" [tamano]="64" /></span>
+          }
+          @if (p.descuento > 0) { <span class="insignia oferta grande">-{{ p.descuento }}%</span> }
+          @if (imagenes().length > 1) {
+            <button type="button" class="carrusel-flecha izq" (click)="mover(-1)" aria-label="Foto anterior"><app-icono nombre="izquierda" /></button>
+            <button type="button" class="carrusel-flecha der" (click)="mover(1)" aria-label="Foto siguiente"><app-icono nombre="derecha" /></button>
+            <span class="galeria-contador">{{ foto() + 1 }} / {{ imagenes().length }}</span>
+          }
+        </div>
+        @if (imagenes().length > 1) {
+          <div class="galeria-miniaturas">
+            @for (img of imagenes(); track img.id; let i = $index) {
+              <button type="button" [class.activo]="i === foto()" (click)="foto.set(i)" [attr.aria-label]="'Ver foto ' + (i + 1)">
+                <img [src]="img.miniatura" alt="" loading="lazy" width="80" height="80" />
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="ficha-info">
+        <div class="ficha-etiquetas">
+          @if (p.marca) { <span class="marca">{{ p.marca.nombre }}</span> }
+          <span class="estado" [class]="p.estado">{{ estados[p.estado] }}</span>
+          <span class="tenue">{{ p.condicion === 'usado' ? 'Usado' : 'Nuevo' }}</span>
+        </div>
+        <h1>{{ p.nombre }}</h1>
+
+        <div class="ficha-precio">
+          <strong>{{ p.precio_final | soles }}</strong>
+          @if (p.descuento > 0) { <s>{{ p.precio | soles }}</s> <span class="ahorro">Ahorras {{ p.precio - p.precio_final | soles }}</span> }
+        </div>
+        <p class="ficha-resumen">{{ p.resumen }}</p>
+
+        @if (p.estado !== 'agotado') {
+          <div class="ficha-compra">
+            <div class="cantidad grande" role="group" aria-label="Cantidad">
+              <button type="button" (click)="cantidad.set(Math.max(1, cantidad() - 1))" aria-label="Menos"><app-icono nombre="menos" [tamano]="16" /></button>
+              <b>{{ cantidad() }}</b>
+              <button type="button" (click)="cantidad.set(Math.min(maximo(), cantidad() + 1))" aria-label="Más"><app-icono nombre="mas" [tamano]="16" /></button>
+            </div>
+            <button type="button" class="btn grande" (click)="agregar()"><app-icono nombre="carrito" [tamano]="18" /> Agregar</button>
+            <button type="button" class="btn primario grande" (click)="comprar()">Comprar ahora</button>
+          </div>
+          @if (p.estado === 'disponible' && p.stock > 0 && p.stock <= 5) { <p class="alerta-stock">¡Quedan solo {{ p.stock }}!</p> }
+          @if (p.estado === 'a_pedido') { <p class="tenue">Producto a pedido: te confirmamos la fecha de entrega por WhatsApp.</p> }
+        } @else {
+          <div class="agotado-aviso">
+            <p><b>Agotado por ahora.</b> Escríbenos y te avisamos cuando vuelva.</p>
+            <a class="btn primario" target="_blank" rel="noopener"
+              [href]="'https://wa.me/51966422599?text=' + encodeURIComponent('Hola, me interesa ' + p.nombre + '. ¿Cuándo vuelve a estar disponible?')">
+              <app-icono nombre="whatsapp" [tamano]="18" /> Avísame
+            </a>
+          </div>
+        }
+
+        <ul class="ficha-beneficios">
+          <li><app-icono nombre="tren" [tamano]="18" /> Entrega gratis en estaciones del Metro de Lima</li>
+          <li><app-icono nombre="tarjeta" [tamano]="18" /> Paga con Yape, Plin o efectivo</li>
+        </ul>
+
+        <div class="compartir">
+          <span>Compartir</span>
+          <a [href]="enlaceWhatsapp()" target="_blank" rel="noopener" class="btn-icono whatsapp" aria-label="Compartir por WhatsApp"><app-icono nombre="whatsapp" /></a>
+          <a [href]="enlaceFacebook()" target="_blank" rel="noopener" class="btn-icono facebook" aria-label="Compartir en Facebook"><app-icono nombre="facebook" /></a>
+          <button type="button" class="btn-icono" (click)="copiar()" [attr.aria-label]="copiado() ? 'Enlace copiado' : 'Copiar enlace'">
+            <app-icono [nombre]="copiado() ? 'check' : 'enlace'" />
+          </button>
+          @if (puedeCompartir) {
+            <button type="button" class="btn-icono" (click)="compartir()" aria-label="Más opciones para compartir"><app-icono nombre="compartir" /></button>
+          }
+          @if (copiado()) { <small class="tenue">¡Enlace copiado!</small> }
+        </div>
+      </div>
+    </article>
+
+    <section class="ficha-descripcion">
+      <h2>Descripción</h2>
+      <div class="contenido-html" [innerHTML]="html(p.descripcion)"></div>
+      @if (p.etiquetas?.length) {
+        <div class="etiquetas-producto" aria-label="Etiquetas">
+          @for (e of p.etiquetas; track e) { <a routerLink="/tienda" [queryParams]="{ q: e }" class="chip-etiqueta">#{{ e }}</a> }
+        </div>
+      }
+    </section>
+
+    @if (relacionados().length) {
+      <section class="seccion">
+        <div class="seccion-titulo"><h2>También te puede interesar</h2></div>
+        <div class="grilla-productos fila-desplazable">
+          @for (r of relacionados(); track r.id) { <app-tarjeta-producto [producto]="r" /> }
+        </div>
+      </section>
+    }
+  </div>
+
+  @if (p.estado !== 'agotado') {
+    <div class="barra-compra solo-movil">
+      <div><small>{{ p.nombre }}</small><strong>{{ p.precio_final | soles }}</strong></div>
+      <button type="button" class="btn primario grande" (click)="agregar()"><app-icono nombre="carrito" [tamano]="18" /> Agregar</button>
+    </div>
+  }
+} @else {
+  <div class="contenedor ficha"><div class="galeria esqueleto"></div><div class="ficha-info esqueleto"></div></div>
+}

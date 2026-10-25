@@ -1,0 +1,123 @@
+<div class="bandeja">
+  @if (menu()) { <div class="velo solo-movil" (click)="menu.set(false)"></div> }
+  <aside class="bandeja-menu" [class.abierto]="menu()" aria-label="Filtros de productos">
+    <div class="bandeja-grupo">
+      <h2>Productos</h2>
+      @for (v of vistas; track v.clave) {
+        <button type="button" [class.activo]="vista() === v.clave" (click)="elegirVista(v.clave)">
+          <app-icono [nombre]="v.icono" [tamano]="18" /><span>{{ v.texto }}</span><b>{{ conteos()?.[v.conteo] ?? '' }}</b>
+        </button>
+      }
+    </div>
+    <div class="bandeja-grupo">
+      <h2>Pendientes</h2>
+      @for (v of pendientes; track v.clave) {
+        <button type="button" [class.activo]="vista() === v.clave" (click)="elegirVista(v.clave)" [class.alerta]="(conteos()?.[v.conteo] ?? 0) > 0">
+          <app-icono [nombre]="v.icono" [tamano]="18" /><span>{{ v.texto }}</span><b>{{ conteos()?.[v.conteo] ?? '' }}</b>
+        </button>
+      }
+    </div>
+    <div class="bandeja-grupo">
+      <h2>Categorías <a routerLink="/admin/categorias" class="enlace pequeno">Editar</a></h2>
+      @for (c of categoriasColor(); track c.id) {
+        <button type="button" class="etiqueta-cat" [class.activo]="categoria() === c.id" (click)="elegirCategoria(c.id)">
+          <i [style.background]="c.color"></i><span>{{ c.etiqueta }}</span><b>{{ conteos()?.categorias?.[c.id] ?? 0 }}</b>
+        </button>
+      }
+    </div>
+  </aside>
+
+  <section class="bandeja-contenido">
+    <div class="bandeja-barra">
+      <button type="button" class="btn solo-movil" (click)="menu.set(true)"><app-icono nombre="filtro" [tamano]="18" /> Filtros</button>
+      <label class="bandeja-buscar">
+        <app-icono nombre="buscar" [tamano]="18" />
+        <input type="search" placeholder="Buscar por nombre o código" [ngModel]="q()" (ngModelChange)="q.set($event); pagina.set(1)" aria-label="Buscar productos" />
+      </label>
+      <label class="bandeja-orden">Ordenar por
+        <select [ngModel]="orden()" (ngModelChange)="orden.set($event); pagina.set(1)">
+          @for (o of ordenes; track o.valor) { <option [value]="o.valor">{{ o.texto }}</option> }
+        </select>
+      </label>
+      <a routerLink="/admin/productos/nuevo" class="btn primario"><app-icono nombre="mas" [tamano]="18" /> Nuevo producto</a>
+    </div>
+
+    <div class="bandeja-titulo">
+      <h1>{{ tituloVista() }} <small class="tenue">{{ lista()?.total ?? '' }}</small></h1>
+      @if (vista() !== 'todos' || categoria() || q()) {
+        <button type="button" class="enlace" (click)="elegirVista('todos'); categoria.set(null); q.set('')">Quitar filtros</button>
+      }
+    </div>
+    @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+
+    <div class="tarjetas-admin">
+      @for (p of lista()?.datos ?? []; track p.id) {
+        <article class="tarjeta-admin" [class.oculto]="!p.activo" [style.--color-cat]="colorDe(p.categoria_id)">
+          <a class="ta-producto" [routerLink]="['/admin/productos', p.id]">
+            @if (p.imagen) { <img [src]="p.imagen.miniatura" alt="" width="72" height="72" loading="lazy" /> }
+            @else { <span class="sin-foto"><app-icono nombre="imagen" /></span> }
+            <span>
+              <b>{{ p.nombre }}</b>
+              <small class="tenue">#{{ p.id }} · {{ p.marca?.nombre }} · {{ p.imagenes_total }} foto(s)</small>
+              <span class="chips-mini">
+                <span class="chip-cat"><i></i>{{ p.categoria?.nombre ?? 'Sin categoría' }}</span>
+                @if (!p.activo) { <span class="chip-mini gris">Oculto</span> }
+                @if (p.destacado) { <span class="chip-mini naranja">Destacado</span> }
+                @if (p.costo === null) { <span class="chip-mini rojo">Sin costo</span> }
+              </span>
+            </span>
+          </a>
+
+          <div class="ta-estado">
+            <select class="estado-select" [class]="p.estado" [ngModel]="p.estado" (ngModelChange)="cambiar(p, { estado: $event })" aria-label="Estado">
+              <option value="disponible">Disponible</option>
+              <option value="a_pedido">A pedido</option>
+              <option value="agotado">Agotado</option>
+            </select>
+            <small class="tenue">Stock <b [class.negativo]="p.estado === 'disponible' && p.stock <= 3">{{ p.stock }}</b></small>
+          </div>
+
+          <div class="ta-numeros">
+            <div><small>Precio</small><b>{{ p.precio_final | soles }}</b></div>
+            <div><small>Costo</small><b>{{ p.costo_unitario !== null ? (p.costo_unitario | soles) : '—' }}</b></div>
+            <div><small>Margen</small>
+              @if (p.margen !== null) { <span class="pildora-margen" [class.bajo]="p.margen < 20">{{ p.margen }}%</span> } @else { <b>—</b> }
+            </div>
+          </div>
+
+          <div class="ta-acciones">
+            <small class="tenue">{{ p.actualizado | hace }}</small>
+            <div>
+              <label class="interruptor" [title]="p.destacado ? 'Quitar de destacados' : 'Destacar en portada'">
+                <input type="checkbox" [checked]="p.destacado" (change)="cambiar(p, { destacado: !p.destacado })" /><app-icono nombre="estrella" [tamano]="18" />
+              </label>
+              <label class="interruptor" [title]="p.activo ? 'Ocultar de la tienda' : 'Mostrar en la tienda'">
+                <input type="checkbox" [checked]="p.activo" (change)="cambiar(p, { activo: !p.activo })" /><app-icono nombre="ojo" [tamano]="18" />
+              </label>
+              <a [routerLink]="['/admin/productos', p.id]" class="btn">Editar</a>
+            </div>
+          </div>
+        </article>
+      } @empty {
+        @if (lista()) { <div class="vacio panel"><app-icono nombre="caja" [tamano]="40" /><p>No hay productos en esta vista.</p></div> }
+        @else { @for (i of [1, 2, 3]; track i) { <div class="tarjeta-admin esqueleto"></div> } }
+      }
+    </div>
+
+    @if ((lista()?.paginas ?? 1) > 1) {
+      <nav class="paginacion">
+        <button type="button" class="btn-icono" [disabled]="pagina() === 1" (click)="pagina.set(pagina() - 1)" aria-label="Anterior"><app-icono nombre="izquierda" /></button>
+        <span>Página {{ pagina() }} de {{ lista()?.paginas }}</span>
+        <button type="button" class="btn-icono" [disabled]="pagina() === lista()?.paginas" (click)="pagina.set(pagina() + 1)" aria-label="Siguiente"><app-icono nombre="derecha" /></button>
+      </nav>
+    }
+  </section>
+</div>
+
+@if (avisos().length) {
+  <div class="avisos-flotantes" role="status">
+    @for (a of avisos(); track a; let i = $index) {
+      <div class="aviso-admin"><app-icono nombre="etiqueta" [tamano]="18" /><span>{{ a }}</span><button type="button" class="btn-icono" (click)="quitarAviso(i)" aria-label="Cerrar aviso"><app-icono nombre="cerrar" [tamano]="16" /></button></div>
+    }
+  </div>
+}

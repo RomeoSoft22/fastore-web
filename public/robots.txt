@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /callback
+Disallow: /carrito
+Disallow: /fastore-api/
+
+Sitemap: https://shop.juarezcampos.net/sitemap.xml

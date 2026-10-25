@@ -1,0 +1,150 @@
+<div class="admin-titulo">
+  <div>
+    <h1>Dashboard</h1>
+    <p class="tenue sin-margen">Ventas confirmadas, costos y ganancia de {{ nombreMes() }}</p>
+  </div>
+  <div class="acciones-titulo">
+    <div class="selector-mes" role="group" aria-label="Mes">
+      <button type="button" class="btn-icono" (click)="cambiarMes(-1)" aria-label="Mes anterior"><app-icono nombre="izquierda" /></button>
+      <input type="month" [ngModel]="mes()" (ngModelChange)="$event && mes.set($event)" aria-label="Elegir mes" />
+      <button type="button" class="btn-icono" (click)="cambiarMes(1)" [disabled]="esMesActual()" aria-label="Mes siguiente"><app-icono nombre="derecha" /></button>
+    </div>
+    <button type="button" class="btn primario" (click)="venta.set(true)"><app-icono nombre="mas" [tamano]="18" /> Registrar venta</button>
+  </div>
+</div>
+
+@if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+
+@if (datos(); as d) {
+  @let k = d.kpis;
+  <section class="hero-kpi">
+    <div class="hero-principal">
+      <span>Ganancia del mes</span>
+      <strong [class.negativo]="k.ganancia < 0">{{ k.ganancia | soles }}</strong>
+      @if (variacion('ganancia'); as v) {
+        <small class="delta" [class.sube]="v > 0" [class.baja]="v < 0">{{ v > 0 ? '▲' : '▼' }} {{ v > 0 ? '+' : '' }}{{ v }}% vs. mes anterior</small>
+      } @else { <small class="tenue">Sin datos del mes anterior para comparar</small> }
+      <div class="margen-barra" [attr.aria-label]="'Margen ' + k.margen + '%'">
+        <span [style.width.%]="Math.max(0, Math.min(100, k.margen))"></span>
+      </div>
+      <small>Margen neto <b>{{ k.margen }}%</b> · objetivo {{ d.parametros.margen_objetivo_pct }}%</small>
+    </div>
+    <div class="kpis compactos">
+      @for (t of tiles; track t.campo) {
+        <div class="kpi">
+          <span>{{ t.etiqueta }}</span>
+          <strong>{{ t.moneda ? (k[t.campo] | soles) : k[t.campo] }}</strong>
+          @if (variacion(t.campo); as v) {
+            <small class="delta" [class.sube]="t.invertido ? v < 0 : v > 0" [class.baja]="t.invertido ? v > 0 : v < 0">{{ v > 0 ? '▲ +' : '▼ ' }}{{ v }}%</small>
+          } @else { <small class="tenue">—</small> }
+        </div>
+      }
+    </div>
+  </section>
+
+  @if (sinVentas()) {
+    <div class="panel aviso-panel">
+      <app-icono nombre="caja" [tamano]="28" />
+      <div>
+        <b>Aún no hay ventas confirmadas en {{ nombreMes() }}.</b>
+        <p class="tenue sin-margen">Las ventas se cuentan cuando marcas un pedido como <i>Vendido</i> en Seguimiento de carritos, o cuando registras una venta hecha por WhatsApp o en persona.</p>
+      </div>
+      <button type="button" class="btn" (click)="venta.set(true)">Registrar venta</button>
+    </div>
+  }
+
+  <section class="panel">
+    <h2>Ventas y ganancia por día</h2>
+    <app-grafico-columnas titulo="Ventas y ganancia por día del mes" ejeX="Día" [series]="seriesVG" [grupos]="porDia()" [cadaEtiqueta]="5" />
+  </section>
+
+  <div class="dos-paneles">
+    <section class="panel">
+      <h2>Ventas por categoría</h2>
+      <app-grafico-barras [barras]="categorias()" [color]="colores.ventas" />
+    </section>
+    <section class="panel">
+      <h2>Embudo de la tienda web</h2>
+      <p class="tenue pequeno">Carritos creados este mes y hasta dónde llegaron.</p>
+      <app-grafico-barras [barras]="embudo()" [color]="colores.ventas" [moneda]="false" />
+      <a routerLink="/admin/carritos" class="enlace">{{ d.abandonados.total }} carritos abandonados · {{ d.abandonados.valor | soles }} por recuperar <app-icono nombre="derecha" [tamano]="14" /></a>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="panel-titulo"><h2>Productos más rentables</h2><small class="tenue">ordenados por ganancia</small></div>
+    @if (d.top_productos.length) {
+      <div class="tabla-desplazable">
+        <table class="tabla">
+          <thead><tr><th>Producto</th><th class="num">Unid.</th><th class="num">Ventas</th><th class="num">Ganancia</th><th class="num">Margen</th></tr></thead>
+          <tbody>
+            @for (p of d.top_productos; track p.id) {
+              <tr>
+                <td><a [routerLink]="['/admin/productos', p.id]">{{ p.nombre }}</a></td>
+                <td class="num">{{ p.unidades }}</td>
+                <td class="num">{{ p.ventas | soles }}</td>
+                <td class="num" [class.negativo]="p.ganancia < 0">{{ p.ganancia | soles }}</td>
+                <td class="num"><span class="pildora-margen" [class.bajo]="p.margen < d.parametros.margen_objetivo_pct">{{ p.margen }}%</span></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else { <p class="tenue">Sin ventas en este mes.</p> }
+  </section>
+
+  <section class="panel">
+    <h2>Últimos 6 meses</h2>
+    <app-grafico-columnas titulo="Ventas y ganancia de los últimos 6 meses" ejeX="Mes" [series]="seriesVG" [grupos]="tendencia()" />
+  </section>
+
+  <div class="dos-paneles">
+    <section class="panel">
+      <div class="panel-titulo"><h2>Inventario disponible</h2><a routerLink="/admin/productos" class="enlace">Productos</a></div>
+      <dl class="datos-inventario">
+        <div><dt>Unidades en stock</dt><dd>{{ d.inventario.unidades }}</dd></div>
+        <div><dt>Valor a precio de venta</dt><dd>{{ d.inventario.valor_venta | soles }}</dd></div>
+        <div><dt>Valor a costo</dt><dd>{{ d.inventario.valor_costo | soles }}</dd></div>
+        <div><dt>Ganancia potencial</dt><dd>{{ d.inventario.valor_venta - d.inventario.valor_costo | soles }}</dd></div>
+      </dl>
+      @if (d.inventario.sin_costo) {
+        <p class="tenue pequeno"><app-icono nombre="etiqueta" [tamano]="14" /> {{ d.inventario.sin_costo }} producto(s) en stock sin costo: el valor a costo está incompleto.</p>
+      }
+    </section>
+    <section class="panel">
+      <div class="panel-titulo"><h2>Cupones usados</h2><a routerLink="/admin/cupones" class="enlace">Gestionar</a></div>
+      @if (d.cupones.length) {
+        <table class="tabla">
+          <thead><tr><th>Código</th><th class="num">Usos</th><th class="num">Descuento</th><th class="num">Ventas</th></tr></thead>
+          <tbody>
+            @for (c of d.cupones; track c.codigo) {
+              <tr><td><code>{{ c.codigo }}</code></td><td class="num">{{ c.usos }}</td><td class="num">{{ c.descuento | soles }}</td><td class="num">{{ c.ventas | soles }}</td></tr>
+            }
+          </tbody>
+        </table>
+      } @else { <p class="tenue">Ninguna venta con cupón este mes.</p> }
+      @for (c of d.por_canal; track c.canal) {
+        <p class="pequeno sin-margen"><b>{{ c.canal === 'web' ? 'Tienda web' : 'Registradas a mano' }}:</b> {{ c.pedidos }} venta(s) · {{ c.ventas | soles }}</p>
+      }
+    </section>
+  </div>
+
+  <p class="tenue pequeno">
+    Ganancia = total cobrado − costo de los productos (costo × (1 + flete {{ d.parametros.costo_flete_pct }}% + aduana {{ d.parametros.costo_aduana_pct }}%) + empaque S/ {{ d.parametros.costo_empaque }})
+    − entrega S/ {{ d.parametros.costo_entrega_pedido }} por pedido − comisión {{ d.parametros.comision_pct }}%.
+    <a routerLink="/admin/costos" class="enlace">Cambiar parámetros</a>
+    @if (d.sin_costo.ventas) { <br /><b>{{ d.sin_costo.ventas }} venta(s) del mes incluyen productos sin costo: su ganancia está sobreestimada.</b> }
+  </p>
+} @else {
+  <div class="kpis">@for (i of [1, 2, 3, 4]; track i) { <div class="kpi esqueleto"></div> }</div>
+}
+
+@if (avisos().length) {
+  <div class="avisos-flotantes" role="status">
+    @for (a of avisos(); track a; let i = $index) {
+      <div class="aviso-admin"><app-icono nombre="etiqueta" [tamano]="18" /><span>{{ a }}</span><button type="button" class="btn-icono" (click)="quitarAviso(i)" aria-label="Cerrar aviso"><app-icono nombre="cerrar" [tamano]="16" /></button></div>
+    }
+  </div>
+}
+
+@if (venta()) { <app-registrar-venta (cerrar)="venta.set(false)" (registrada)="ventaRegistrada()" /> }

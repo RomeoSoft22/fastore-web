@@ -1,0 +1,57 @@
+# FAStore · shop.juarezcampos.net
+# La API vive en /fastore-api (carpeta con su propio .htaccess de Laravel).
+# Toda ruta de la tienda pasa por seo.php, que escribe los metadatos de cada página.
+
+Options -MultiViews -Indexes
+DirectoryIndex seo.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Redirige a HTTPS
+  RewriteCond %{HTTPS} off
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # La API la atiende su propio .htaccess
+  RewriteRule ^fastore-api(/|$) - [L]
+
+  # Mapa del sitio generado por la API
+  RewriteRule ^sitemap\.xml$ fastore-api/api/seo/sitemap.xml [L]
+
+  # index.html no se entrega directo: siempre con los metadatos de la página
+  RewriteRule ^index\.html$ / [L,R=301]
+
+  # Archivos y carpetas reales
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Rutas de Angular (/producto/..., /categoria/..., /admin...)
+  RewriteRule ^ seo.php [L,QSA]
+</IfModule>
+
+<IfModule mod_headers.c>
+  # Los .js y .css llevan hash en el nombre: se cachean un año.
+  <FilesMatch "\.(js|css|woff2)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "\.(jpg|png|svg|webp|ico)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+  # Seguridad: HTTPS obligatorio, sin incrustar la tienda en otros sitios, sin adivinar tipos de
+  # archivo, sin acceso a cámara/micrófono/ubicación, y solo los orígenes que la tienda usa.
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+  Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self' https://identidad.juarezcampos.net; object-src 'none'; upgrade-insecure-requests"
+  Header always unset X-Powered-By
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+</IfModule>

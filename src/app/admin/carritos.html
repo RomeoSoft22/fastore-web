@@ -1,0 +1,189 @@
+<div class="admin-titulo">
+  <div>
+    <h1>Pedidos y carritos</h1>
+    <p class="tenue sin-margen">Quién agregó productos y no concluyó, las cotizaciones enviadas y las ventas confirmadas.</p>
+  </div>
+  <button type="button" class="btn primario" (click)="venta.set(true)"><app-icono nombre="mas" [tamano]="18" /> Registrar venta</button>
+</div>
+
+<div class="pestanas" role="tablist">
+  @for (v of vistas; track v.valor) {
+    <button type="button" role="tab" [class.activo]="vista() === v.valor" [attr.aria-selected]="vista() === v.valor" (click)="elegirVista(v.valor)">
+      {{ v.texto }} @if (lista()?.conteos?.[v.valor]; as n) { <span class="contador-pestana">{{ n }}</span> }
+    </button>
+  }
+</div>
+
+<div class="barra-filtros">
+  <input type="search" placeholder="Buscar por nombre, celular, N°, cotización o producto" [ngModel]="q()" (ngModelChange)="q.set($event); pagina.set(1)" aria-label="Buscar" />
+  <label class="casilla"><input type="checkbox" [ngModel]="conContacto()" (ngModelChange)="conContacto.set($event); pagina.set(1)" /> Solo con celular</label>
+</div>
+@if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+
+<div class="lista-carritos">
+  @for (c of lista()?.datos ?? []; track c.id) {
+    <article class="carrito-fila" [class.expandido]="abierto() === c.id">
+      <button type="button" class="carrito-resumen" (click)="abierto.set(abierto() === c.id ? null : c.id)" [attr.aria-expanded]="abierto() === c.id">
+        <span class="carrito-quien">
+          <b>{{ c.nombre || 'Visitante anónimo' }}</b>
+          <small class="tenue">{{ c.cotizacion || 'N° ' + c.id }} · {{ c.celular || 'sin celular' }}</small>
+        </span>
+        <span class="carrito-que">
+          <span class="miniaturas">
+            @for (p of c.productos.slice(0, 3); track p.id) {
+              @if (p.imagen) { <img [src]="p.imagen" alt="" width="28" height="28" /> }
+            }
+          </span>
+          {{ c.productos[0]?.nombre }} @if (c.productos.length > 1) { <small class="tenue">+{{ c.productos.length - 1 }} más</small> }
+        </span>
+        <span class="carrito-cuanto"><strong>{{ c.total | soles }}</strong><small class="tenue">{{ c.items }} unid.@if (c.entrega_texto) { · {{ c.entrega_texto.split(' · ')[0] }} }</small></span>
+        <span class="carrito-cuando">
+          <span class="etiqueta-estado" [class]="c.abandonado ? 'abandonado' : c.estado">{{ c.abandonado ? 'Abandonado' : estados[c.estado] }}</span>
+          <small class="tenue">{{ (c.venta || c.pedido || c.actividad) | hace }}</small>
+        </span>
+        <app-icono [nombre]="abierto() === c.id ? 'arriba' : 'abajo'" [tamano]="18" />
+      </button>
+
+      @if (abierto() === c.id) {
+        <div class="ficha-carrito">
+          <div class="ficha-carrito-principal">
+            <!-- Cliente -->
+            <section class="bloque">
+              <h3><app-icono nombre="usuario" [tamano]="18" /> Cliente</h3>
+              <p class="bloque-titulo">{{ c.nombre || 'Visitante anónimo' }}</p>
+              @if (c.celular) {
+                <div class="acciones-contacto">
+                  <a class="btn whatsapp pequeno-btn" [href]="celularWhatsapp(c)" target="_blank" rel="noopener"><app-icono nombre="whatsapp" [tamano]="16" /> {{ c.celular }}</a>
+                  <a class="btn pequeno-btn" [href]="'tel:' + c.celular"><app-icono nombre="telefono" [tamano]="16" /> Llamar</a>
+                  @if (c.correo) { <a class="btn pequeno-btn" [href]="'mailto:' + c.correo"><app-icono nombre="documento" [tamano]="16" /> {{ c.correo }}</a> }
+                </div>
+              } @else {
+                <p class="tenue">No dejó su celular: solo puedes ver qué le interesó.</p>
+              }
+              <dl class="datos-mini">
+                <div><dt>Dispositivo</dt><dd>{{ c.dispositivo || '—' }}</dd></div>
+                <div><dt>Llegó desde</dt><dd>{{ c.canal === 'manual' ? 'Registrada a mano' : c.origen || 'Directo' }}</dd></div>
+                @if (c.acepto_terminos) { <div><dt>Aceptó términos</dt><dd>{{ c.acepto_terminos | date: 'dd/MM/yyyy HH:mm' }}</dd></div> }
+              </dl>
+            </section>
+
+            <!-- Entrega y pago -->
+            <section class="bloque">
+              <h3><app-icono nombre="camion" [tamano]="18" /> Entrega y pago</h3>
+              <dl class="datos-mini">
+                <div><dt>Entrega</dt><dd>{{ c.entrega_texto || 'Sin elegir' }}</dd></div>
+                @if (c.entrega === 'local' || c.entrega === 'nacional') {
+                  <div><dt>{{ c.entrega === 'local' ? 'Dirección' : 'Agencia Shalom' }}</dt><dd>{{ c.direccion }}</dd></div>
+                  <div><dt>{{ c.entrega === 'local' ? 'Distrito' : 'Ciudad' }}</dt><dd>{{ c.ciudad }}</dd></div>
+                }
+                @if (c.dni) { <div><dt>DNI</dt><dd>{{ c.dni }}</dd></div> }
+                <div><dt>Pago</dt><dd>{{ c.pago || 'Por coordinar' }}</dd></div>
+              </dl>
+            </section>
+
+            <!-- Cotización -->
+            @if (c.cotizacion) {
+              <section class="bloque bloque-cotizacion">
+                <h3><app-icono nombre="documento" [tamano]="18" /> Cotización</h3>
+                <p class="bloque-titulo"><code>{{ c.cotizacion }}</code></p>
+                <p class="tenue pequeno">Vence el {{ c.vence | date: 'dd/MM/yyyy' }}</p>
+                <a class="btn pequeno-btn" [href]="'/cotizacion/' + c.cotizacion" target="_blank"><app-icono nombre="ojo" [tamano]="16" /> Ver cotización</a>
+              </section>
+            }
+          </div>
+
+          <!-- Productos -->
+          <section class="bloque">
+            <h3><app-icono nombre="caja" [tamano]="18" /> Productos</h3>
+            <div class="tabla-desplazable">
+              <table class="tabla productos-carrito">
+                <thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num">P. unit.</th><th class="num">Importe</th><th class="num">Stock</th><th>Agregado</th></tr></thead>
+                <tbody>
+                  @for (p of c.productos; track p.id) {
+                    <tr>
+                      <td class="cot-producto">
+                        @if (p.imagen) { <img [src]="p.imagen" alt="" width="40" height="40" /> }
+                        @if (p.slug) { <a [routerLink]="['/admin/productos', p.id]">{{ p.nombre }}</a> } @else { {{ p.nombre }} }
+                      </td>
+                      <td class="num">{{ p.cantidad }}</td>
+                      <td class="num">{{ p.precio | soles }}</td>
+                      <td class="num">{{ p.precio * p.cantidad | soles }}</td>
+                      <td class="num" [class.negativo]="p.stock !== null && p.stock < p.cantidad">{{ p.stock ?? '—' }}</td>
+                      <td>{{ p.agregado | hace }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div class="totales-carrito">
+              <div><span>Subtotal</span><span>{{ c.subtotal | soles }}</span></div>
+              @if (c.descuento) { <div><span>Cupón {{ c.cupon }}</span><span class="verde">− {{ c.descuento | soles }}</span></div> }
+              <div class="total"><span>Total</span><strong>{{ c.total | soles }}</strong></div>
+              @if (c.ganancia !== null) {
+                <div><span>Ganancia de la venta</span><b [class.negativo]="c.ganancia < 0">{{ c.ganancia | soles }}</b></div>
+              } @else if (costoTotal(c) !== null) {
+                <div><span>Costo de productos</span><span>{{ costoTotal(c)! | soles }}</span></div>
+              }
+            </div>
+          </section>
+
+          <div class="ficha-carrito-principal">
+            <!-- Historial -->
+            <section class="bloque">
+              <h3><app-icono nombre="reloj" [tamano]="18" /> Historial</h3>
+              <ol class="historial">
+                @for (h of c.historial; track $index) {
+                  <li [class]="'h-' + h.tipo">
+                    <span class="historial-icono"><app-icono [nombre]="iconos[h.tipo] || 'reloj'" [tamano]="14" /></span>
+                    <span>{{ h.texto }}<small class="tenue">{{ h.fecha | date: 'dd/MM/yyyy HH:mm' }} · {{ h.fecha | hace }}</small></span>
+                  </li>
+                }
+              </ol>
+            </section>
+
+            <!-- Seguimiento -->
+            <section class="bloque">
+              <h3><app-icono nombre="whatsapp" [tamano]="18" /> Seguimiento</h3>
+              @if (c.mensajes.length) {
+                <div class="mensajes-whatsapp">
+                  @for (m of c.mensajes; track m.titulo) {
+                    <button type="button" class="mensaje-wa" (click)="contactar(c, m.url)" [title]="m.texto">
+                      <b><app-icono nombre="whatsapp" [tamano]="14" /> {{ m.titulo }}</b>
+                      <small>{{ m.texto }}</small>
+                    </button>
+                  }
+                </div>
+                <p class="tenue pequeno">Contactado {{ c.contactos ? c.contactos + ' vez/veces, la última ' + (c.contactado | hace) : 'nunca' }}.</p>
+              } @else {
+                <p class="tenue">Sin celular no hay mensajes de seguimiento.</p>
+              }
+              <label>Nota interna
+                <textarea rows="2" [(ngModel)]="notas[c.id]" (blur)="notas[c.id] !== (c.nota ?? '') && actualizar(c, { nota: notas[c.id] })"
+                  placeholder="Ej.: le escribí, responde el viernes"></textarea>
+              </label>
+              <div class="acciones-carrito">
+                @if (c.estado !== 'vendido') { <button type="button" class="btn primario" (click)="actualizar(c, { estado: 'vendido' })"><app-icono nombre="check" [tamano]="18" /> Marcar vendido</button> }
+                @if (c.estado !== 'descartado' && c.estado !== 'vendido') { <button type="button" class="btn" (click)="actualizar(c, { estado: 'descartado' })">Descartar</button> }
+                @if (c.estado === 'descartado' || c.estado === 'vendido') { <button type="button" class="btn" (click)="actualizar(c, { estado: c.pedido ? 'pedido' : 'activo' })">Reabrir</button> }
+              </div>
+            </section>
+          </div>
+        </div>
+      }
+    </article>
+  } @empty {
+    @if (lista()) {
+      <div class="vacio panel"><app-icono nombre="carrito" [tamano]="40" /><p>No hay carritos en esta vista.</p></div>
+    }
+  }
+</div>
+
+@if ((lista()?.paginas ?? 1) > 1) {
+  <nav class="paginacion">
+    <button type="button" class="btn-icono" [disabled]="pagina() === 1" (click)="pagina.set(pagina() - 1)" aria-label="Anterior"><app-icono nombre="izquierda" /></button>
+    <span>Página {{ pagina() }} de {{ lista()?.paginas }}</span>
+    <button type="button" class="btn-icono" [disabled]="pagina() === lista()?.paginas" (click)="pagina.set(pagina() + 1)" aria-label="Siguiente"><app-icono nombre="derecha" /></button>
+  </nav>
+}
+
+@if (venta()) { <app-registrar-venta (cerrar)="venta.set(false)" (registrada)="ventaRegistrada()" /> }

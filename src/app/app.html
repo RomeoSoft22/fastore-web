@@ -1,0 +1,145 @@
+@if (esAdmin()) {
+  <router-outlet />
+} @else {
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+  <div class="franja">
+    <app-icono nombre="tren" [tamano]="16" /> Entrega <strong>gratis</strong> en estaciones del Metro de Lima<span class="solo-escritorio"> · Paga con Yape o Plin</span>
+  </div>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera-fila">
+      <button type="button" class="btn-icono solo-movil" (click)="menu.set(true)" aria-label="Abrir menú">
+        <app-icono nombre="menu" />
+      </button>
+      <a routerLink="/" class="logo" aria-label="FAStore, ir al inicio">
+        <img class="logo-icono" src="img/marca/icono.png" alt="" width="46" height="40" /><img class="logo-texto" src="img/marca/logo.png" alt="FAStore" width="116" height="24" />
+      </a>
+      <form class="buscador" role="search" (submit)="$event.preventDefault(); buscar()">
+        <app-icono nombre="buscar" [tamano]="18" />
+        <input type="search" name="q" placeholder="Buscar productos, marcas…" aria-label="Buscar productos"
+          [ngModel]="texto()" (ngModelChange)="texto.set($event)" />
+        <button type="submit" class="btn primario">Buscar</button>
+      </form>
+      <app-selector-tema />
+      <button type="button" class="btn-carrito" (click)="carrito.abierto.set(true)" aria-label="Ver carrito">
+        <app-icono nombre="carrito" [tamano]="22" />
+        @if (carrito.cantidad()) { <span class="contador">{{ carrito.cantidad() }}</span> }
+        <span class="solo-escritorio">{{ carrito.total() | soles }}</span>
+      </button>
+    </div>
+    <nav class="contenedor categorias-nav" aria-label="Categorías">
+      <a routerLink="/tienda" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: true }">Todo</a>
+      @for (c of categorias(); track c.id) {
+        <a [routerLink]="['/categoria', c.slug]" routerLinkActive="activo">{{ c.nombre }}</a>
+      }
+    </nav>
+  </header>
+
+  @if (menu()) {
+    <div class="velo" (click)="menu.set(false)"></div>
+    <aside class="cajon izquierda" aria-label="Menú">
+      <div class="cajon-cabecera">
+        <a routerLink="/" class="logo"><img class="logo-icono" src="img/marca/icono.png" alt="" width="46" height="40" /><img class="logo-texto" src="img/marca/logo.png" alt="FAStore" width="116" height="24" /></a>
+        <button type="button" class="btn-icono" (click)="menu.set(false)" aria-label="Cerrar menú"><app-icono nombre="cerrar" /></button>
+      </div>
+      <nav class="menu-movil">
+        <a routerLink="/">Inicio</a>
+        <a routerLink="/tienda">Todo el catálogo</a>
+        @for (c of categorias(); track c.id) {
+          <a [routerLink]="['/categoria', c.slug]">{{ c.nombre }} <small>{{ c.total }}</small></a>
+        }
+        <a [href]="whatsapp()" target="_blank" rel="noopener"><app-icono nombre="whatsapp" [tamano]="18" /> Escríbenos</a>
+      </nav>
+    </aside>
+  }
+
+  @if (carrito.abierto()) {
+    <div class="velo" (click)="carrito.abierto.set(false)"></div>
+    <aside class="cajon derecha" aria-label="Carrito">
+      <div class="cajon-cabecera">
+        <h2>Tu carrito <small>({{ carrito.cantidad() }})</small></h2>
+        <button type="button" class="btn-icono" (click)="carrito.abierto.set(false)" aria-label="Cerrar carrito"><app-icono nombre="cerrar" /></button>
+      </div>
+      @if (carrito.items().length) {
+        <ul class="mini-carrito">
+          @for (i of carrito.items(); track i.id) {
+            <li>
+              <img [src]="i.imagen || 'img/marca/icono.png'" [alt]="i.nombre" width="64" height="64" />
+              <div>
+                <a [routerLink]="['/producto', i.slug]">{{ i.nombre }}</a>
+                <span class="cantidad">
+                  <button type="button" (click)="carrito.cambiar(i.id, i.cantidad - 1)" aria-label="Quitar uno"><app-icono nombre="menos" [tamano]="14" /></button>
+                  <b>{{ i.cantidad }}</b>
+                  <button type="button" (click)="carrito.cambiar(i.id, i.cantidad + 1)" aria-label="Agregar uno"><app-icono nombre="mas" [tamano]="14" /></button>
+                </span>
+              </div>
+              <div class="mini-precio">
+                <strong>{{ i.precio * i.cantidad | soles }}</strong>
+                <button type="button" class="enlace-peligro" (click)="carrito.quitar(i.id)">Quitar</button>
+              </div>
+            </li>
+          }
+        </ul>
+        <div class="cajon-pie">
+          <div class="total"><span>Total</span><strong>{{ carrito.total() | soles }}</strong></div>
+          <a routerLink="/carrito" class="btn primario grande ancho">Finalizar pedido</a>
+          <button type="button" class="btn ancho" (click)="carrito.abierto.set(false)">Seguir comprando</button>
+        </div>
+      } @else {
+        <div class="vacio">
+          <app-icono nombre="carrito" [tamano]="48" />
+          <p>Tu carrito está vacío.</p>
+          <a routerLink="/tienda" class="btn primario">Ver productos</a>
+        </div>
+      }
+    </aside>
+  }
+
+  @if (carrito.agregado(); as a) {
+    <div class="aviso" role="status">
+      <img [src]="a.imagen || 'img/marca/icono.png'" alt="" width="44" height="44" />
+      <div><b>Agregado al carrito</b><span>{{ a.nombre }}</span></div>
+      <button type="button" class="btn primario" (click)="carrito.agregado.set(null); carrito.abierto.set(true)">Ver</button>
+    </div>
+  }
+
+  <main id="contenido">
+    <router-outlet />
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie-grilla">
+      <div>
+        <a routerLink="/" class="logo"><img class="logo-icono" src="img/marca/icono.png" alt="" width="46" height="40" /><img class="logo-texto" src="img/marca/logo.png" alt="FAStore" width="116" height="24" /></a>
+        <p>Tecnología, NFC y coleccionables importados. Entregas en estaciones del Metro de Lima.</p>
+      </div>
+      <div>
+        <h3>Categorías</h3>
+        @for (c of categorias(); track c.id) { <a [routerLink]="['/categoria', c.slug]">{{ c.nombre }}</a> }
+      </div>
+      <div>
+        <h3>Atención</h3>
+        <a [href]="whatsapp()" target="_blank" rel="noopener"><app-icono nombre="whatsapp" [tamano]="16" /> WhatsApp +51 966 422 599</a>
+        <span><app-icono nombre="tren" [tamano]="16" /> Línea 1 del Metro de Lima</span>
+        <span><app-icono nombre="tarjeta" [tamano]="16" /> Yape · Plin · Efectivo</span>
+      </div>
+      <div>
+        <h3>Legal</h3>
+        <a routerLink="/legal/terminos">Términos y condiciones</a>
+        <a routerLink="/legal/privacidad">Política de privacidad</a>
+        <a routerLink="/legal/cookies">Política de cookies</a>
+        <button type="button" class="enlace-pie" (click)="consentimiento.abrirConfiguracion()">Preferencias de cookies</button>
+        <a routerLink="/libro-de-reclamaciones" class="libro-reclamaciones" aria-label="Libro de Reclamaciones">
+          <app-icono nombre="libro" [tamano]="22" /><span><b>Libro de</b><b>Reclamaciones</b></span>
+        </a>
+      </div>
+    </div>
+    <div class="contenedor pie-legal">© {{ anio }} FAStore · Juarez Campos · Precios en soles (PEN) con impuestos incluidos</div>
+  </footer>
+
+  <a class="whatsapp-flotante" [href]="whatsapp()" target="_blank" rel="noopener" aria-label="Escríbenos por WhatsApp">
+    <app-icono nombre="whatsapp" [tamano]="28" />
+  </a>
+}
+
+<app-aviso-cookies />

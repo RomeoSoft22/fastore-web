@@ -1,0 +1,78 @@
+<div class="admin-titulo">
+  <h1>Banners de la portada</h1>
+  <button type="button" class="btn primario" (click)="nuevo()"><app-icono nombre="mas" [tamano]="18" /> Nuevo banner</button>
+</div>
+<p class="tenue">Rotan en la portada en este orden. Imagen de escritorio ideal: <b>1920 × 640 px</b>. Para celular puedes subir otra cuadrada (<b>900 × 900 px</b>).</p>
+@if (error() && !form()) { <p class="error" role="alert">{{ error() }}</p> }
+
+<div class="lista-banners">
+  @for (b of banners(); track b.id; let i = $index; let ultimo = $last) {
+    <article class="fila-banner" [class.oculto]="!b.activo">
+      <img [src]="b.imagen" [alt]="b.titulo" width="240" height="80" loading="lazy" />
+      <div class="fila-info">
+        <b>{{ b.titulo }}</b>
+        <small class="tenue">{{ b.subtitulo }}</small>
+        <small class="tenue">{{ b.enlace || 'Sin enlace' }}
+          @if (b.inicio || b.fin) { · {{ b.inicio || '…' }} → {{ b.fin || '…' }} }
+          @if (b.imagen_movil) { · con imagen para celular }
+        </small>
+      </div>
+      <div class="fila-acciones">
+        <button type="button" class="btn-icono" (click)="mover(i, -1)" [disabled]="i === 0" aria-label="Subir"><app-icono nombre="arriba" [tamano]="18" /></button>
+        <button type="button" class="btn-icono" (click)="mover(i, 1)" [disabled]="ultimo" aria-label="Bajar"><app-icono nombre="abajo" [tamano]="18" /></button>
+        <label class="interruptor"><input type="checkbox" [checked]="b.activo" (change)="alternar(b)" /><app-icono nombre="ojo" [tamano]="18" /></label>
+        <button type="button" class="btn-icono" (click)="editar(b)" aria-label="Editar"><app-icono nombre="editar" [tamano]="18" /></button>
+        <button type="button" class="btn-icono peligro" (click)="eliminar(b)" aria-label="Eliminar"><app-icono nombre="basura" [tamano]="18" /></button>
+      </div>
+    </article>
+  } @empty {
+    <div class="vacio panel"><app-icono nombre="imagen" [tamano]="40" /><p>Aún no hay banners. La portada muestra un mensaje de bienvenida.</p></div>
+  }
+</div>
+
+@if (form(); as f) {
+  <div class="velo" (click)="form.set(null)"></div>
+  <form class="modal ancho" (submit)="$event.preventDefault(); guardar()">
+    <h2>{{ f.id ? 'Editar banner' : 'Nuevo banner' }}</h2>
+
+    <div class="vista-banner" [class.oscuro]="f.tema === 'oscuro'">
+      @if (f.vista) { <img [src]="f.vista" alt="Vista previa" /> } @else { <span class="tenue">Vista previa</span> }
+      <div><b>{{ f.titulo || 'Título del banner' }}</b><small>{{ f.subtitulo }}</small>@if (f.boton) { <span class="btn primario">{{ f.boton }}</span> }</div>
+    </div>
+
+    <div class="dos-columnas">
+      <label>Imagen de escritorio @if (!f.id) { <small class="error-texto">*</small> }
+        <input type="file" accept="image/jpeg,image/png,image/webp" (change)="archivo($event, 'imagen')" />
+      </label>
+      <label>Imagen para celular <small class="tenue">(opcional)</small>
+        <input type="file" accept="image/jpeg,image/png,image/webp" (change)="archivo($event, 'imagen_movil')" />
+        @if (f.vista_movil) { <span class="miniatura-movil"><img [src]="f.vista_movil" alt="" width="60" height="60" /><button type="button" class="enlace-peligro" (click)="quitarMovil()">Quitar</button></span> }
+      </label>
+    </div>
+    <label>Título <input name="titulo" required maxlength="120" [ngModel]="f.titulo" (ngModelChange)="f.titulo = $event" /></label>
+    <label>Subtítulo <input name="subtitulo" maxlength="255" [(ngModel)]="f.subtitulo" /></label>
+    <div class="dos-columnas">
+      <label>Texto del botón <input name="boton" maxlength="40" [(ngModel)]="f.boton" /></label>
+      <label>Enlace <input name="enlace" placeholder="/categoria/nfc o https://…" [(ngModel)]="f.enlace" /></label>
+    </div>
+    <div class="dos-columnas">
+      <label>Desde <small class="tenue">(opcional)</small><input name="inicio" type="date" [(ngModel)]="f.inicio" /></label>
+      <label>Hasta <small class="tenue">(opcional)</small><input name="fin" type="date" [(ngModel)]="f.fin" /></label>
+    </div>
+    <div class="dos-columnas">
+      <label>Color del texto
+        <select name="tema" [(ngModel)]="f.tema">
+          <option value="claro">Blanco (imagen oscura)</option>
+          <option value="oscuro">Oscuro (imagen clara)</option>
+        </select>
+      </label>
+      <label class="casilla alineada"><input type="checkbox" name="activo" [(ngModel)]="f.activo" /> Visible</label>
+    </div>
+
+    @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+    <div class="acciones-form fila">
+      <button type="button" class="btn" (click)="form.set(null)">Cancelar</button>
+      <button type="submit" class="btn primario" [disabled]="guardando()">{{ guardando() ? 'Guardando…' : 'Guardar' }}</button>
+    </div>
+  </form>
+}

@@ -1,0 +1,119 @@
+@let r = resultado();
+@let f = filtros();
+<div class="contenedor catalogo">
+  <nav class="migas" aria-label="Ruta">
+    <a routerLink="/">Inicio</a><span>/</span>
+    @if (slug()) { <a routerLink="/tienda">Catálogo</a><span>/</span><b>{{ titulo() }}</b> } @else { <b>Catálogo</b> }
+  </nav>
+
+  <div class="catalogo-cabecera">
+    <div>
+      <h1>{{ titulo() }}</h1>
+      @if (r?.categoria?.descripcion) { <p class="tenue">{{ r?.categoria?.descripcion }}</p> }
+    </div>
+    <div class="catalogo-controles">
+      <button type="button" class="btn solo-movil" (click)="panel.set(true)">
+        <app-icono nombre="filtro" [tamano]="18" /> Filtros @if (activos().length) { <span class="contador">{{ activos().length }}</span> }
+      </button>
+      <label class="selector">
+        <span class="solo-escritorio">Ordenar</span>
+        <select [ngModel]="f['orden'] || 'relevancia'" (ngModelChange)="aplicar({ orden: $event === 'relevancia' ? null : $event })" aria-label="Ordenar por">
+          @for (o of ordenes; track o.valor) { <option [value]="o.valor">{{ o.texto }}</option> }
+        </select>
+      </label>
+    </div>
+  </div>
+
+  @if (activos().length) {
+    <div class="chips">
+      @for (c of activos(); track c.clave + (c.valor ?? '')) {
+        <button type="button" class="chip" (click)="quitar(c)">{{ c.texto }} <app-icono nombre="cerrar" [tamano]="14" /></button>
+      }
+      <button type="button" class="enlace" (click)="limpiar()">Limpiar todo</button>
+    </div>
+  }
+
+  <div class="catalogo-cuerpo">
+    @if (panel()) { <div class="velo solo-movil" (click)="panel.set(false)"></div> }
+    <aside class="filtros" [class.abierto]="panel()" aria-label="Filtros">
+      <div class="cajon-cabecera solo-movil">
+        <h2>Filtros</h2>
+        <button type="button" class="btn-icono" (click)="panel.set(false)" aria-label="Cerrar filtros"><app-icono nombre="cerrar" /></button>
+      </div>
+
+      <div class="filtro-grupo">
+        <h3>Categoría</h3>
+        <a routerLink="/tienda" [queryParams]="f" [class.activo]="!slug()">Todas</a>
+        @for (c of r?.facetas?.categorias ?? []; track c.id) {
+          <a [routerLink]="['/categoria', c.slug]" [queryParams]="f" [class.activo]="slug() === c.slug">{{ c.nombre }} <small>{{ c.total }}</small></a>
+        }
+      </div>
+
+      @if (r?.facetas?.marcas?.length) {
+        <div class="filtro-grupo">
+          <h3>Marca</h3>
+          @for (m of r?.facetas?.marcas ?? []; track m.id) {
+            <label class="casilla">
+              <input type="checkbox" [checked]="marcasElegidas().includes(m.slug)" (change)="alternarMarca(m.slug)" />
+              {{ m.nombre }} <small>{{ m.total }}</small>
+            </label>
+          }
+        </div>
+      }
+
+      <div class="filtro-grupo">
+        <h3>Precio (S/)</h3>
+        <form class="rango" (submit)="$event.preventDefault(); aplicarPrecio()">
+          <input type="number" min="0" inputmode="numeric" [placeholder]="r?.facetas?.precio?.min ?? 'Mín.'" aria-label="Precio mínimo"
+            [ngModel]="min()" (ngModelChange)="min.set($event)" name="min" />
+          <span>–</span>
+          <input type="number" min="0" inputmode="numeric" [placeholder]="r?.facetas?.precio?.max ?? 'Máx.'" aria-label="Precio máximo"
+            [ngModel]="max()" (ngModelChange)="max.set($event)" name="max" />
+          <button type="submit" class="btn">Aplicar</button>
+        </form>
+      </div>
+
+      <div class="filtro-grupo">
+        <h3>Disponibilidad</h3>
+        <label class="casilla">
+          <input type="checkbox" [checked]="!!f['disponible']" (change)="aplicar({ disponible: f['disponible'] ? null : '1' })" /> Solo disponibles
+        </label>
+        <label class="casilla">
+          <input type="checkbox" [checked]="f['condicion'] === 'usado'" (change)="aplicar({ condicion: f['condicion'] === 'usado' ? null : 'usado' })" /> Solo usados
+        </label>
+      </div>
+
+      <div class="cajon-pie solo-movil">
+        <button type="button" class="btn primario grande ancho" (click)="panel.set(false)">Ver {{ r?.total ?? 0 }} productos</button>
+      </div>
+    </aside>
+
+    <section class="resultados" [attr.aria-busy]="cargando()">
+      <p class="tenue">{{ r?.total ?? 0 }} producto{{ r?.total === 1 ? '' : 's' }}</p>
+      <div class="grilla-productos" [class.atenuado]="cargando() && r">
+        @if (r) {
+          @for (p of r.datos; track p.id) { <app-tarjeta-producto [producto]="p" /> }
+          @empty {
+            <div class="vacio ancho-total">
+              <app-icono nombre="buscar" [tamano]="44" />
+              <p>No encontramos productos con esos filtros.</p>
+              <button type="button" class="btn primario" (click)="limpiar()">Quitar filtros</button>
+            </div>
+          }
+        } @else {
+          @for (i of [1, 2, 3, 4, 5, 6]; track i) { <div class="tarjeta esqueleto"></div> }
+        }
+      </div>
+
+      @if (r && r.paginas > 1) {
+        <nav class="paginacion" aria-label="Páginas">
+          <button type="button" class="btn-icono" [disabled]="r.pagina === 1" (click)="irA(r.pagina - 1)" aria-label="Anterior"><app-icono nombre="izquierda" /></button>
+          @for (n of paginas(); track n) {
+            <button type="button" [class.activo]="n === r.pagina" (click)="irA(n)" [attr.aria-current]="n === r.pagina ? 'page' : null">{{ n }}</button>
+          }
+          <button type="button" class="btn-icono" [disabled]="r.pagina === r.paginas" (click)="irA(r.pagina + 1)" aria-label="Siguiente"><app-icono nombre="derecha" /></button>
+        </nav>
+      }
+    </section>
+  </div>
+</div>

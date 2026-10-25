@@ -1,0 +1,157 @@
+<div class="admin-titulo">
+  <div>
+    <a routerLink="/admin/productos" class="enlace"><app-icono nombre="izquierda" [tamano]="16" /> Productos</a>
+    <h1>{{ id() ? form.nombre || 'Editar producto' : 'Nuevo producto' }}</h1>
+  </div>
+  @if (slugPublico()) {
+    <a class="btn" [href]="'/producto/' + slugPublico()" target="_blank"><app-icono nombre="ojo" [tamano]="18" /> Ver en la tienda</a>
+  }
+</div>
+
+@if (cargando()) {
+  <div class="panel esqueleto alto"></div>
+} @else {
+  <form class="form-producto" (submit)="$event.preventDefault(); guardar()">
+    <div class="form-columna">
+      <section class="panel">
+        <h2>Información</h2>
+        <label>Nombre del producto
+          <input name="nombre" required maxlength="150" [(ngModel)]="form.nombre" />
+        </label>
+        <div class="dos-columnas">
+          <label>Categoría
+            <select name="categoria" [(ngModel)]="form.categoria_id">
+              <option [ngValue]="null">Sin categoría</option>
+              @for (c of catalogos()?.categorias ?? []; track c.id) { <option [ngValue]="c.id">{{ c.nombre }}</option> }
+            </select>
+          </label>
+          <label>Marca
+            <select name="marca" required [(ngModel)]="form.marca_id">
+              <option [ngValue]="null" disabled>Elige una marca</option>
+              @for (m of catalogos()?.marcas ?? []; track m.id) { <option [ngValue]="m.id">{{ m.nombre }}</option> }
+            </select>
+          </label>
+        </div>
+        <label>Resumen <small class="tenue">(opcional · se muestra al compartir y en Google, máx. 300)</small>
+          <textarea name="resumen" rows="2" maxlength="300" [(ngModel)]="form.resumen"
+            placeholder="Si lo dejas vacío se usa el inicio de la descripción"></textarea>
+        </label>
+        <div class="campo">
+          <span class="campo-etiqueta">Descripción</span>
+          <app-editor-texto [contenido]="form.descripcion" (cambio)="form.descripcion = $event" [subirImagen]="id() ? subirImagen : null" />
+        </div>
+        <div class="campo">
+          <label for="etiqueta" class="campo-etiqueta">Etiquetas <small class="tenue">(palabras con las que te buscan: ayudan al buscador de la tienda y a Google)</small></label>
+          <div class="campo-chips">
+            @for (e of form.etiquetas; track e) {
+              <span class="chip-etiqueta">{{ e }} <button type="button" (click)="quitarEtiqueta(e)" [attr.aria-label]="'Quitar ' + e"><app-icono nombre="cerrar" [tamano]="12" /></button></span>
+            }
+            <input id="etiqueta" name="etiqueta" placeholder="Escribe y presiona Enter" [(ngModel)]="etiqueta"
+              (keydown.enter)="agregarEtiqueta($event)" (keydown.,)="agregarEtiqueta($event)" (blur)="etiqueta.trim() && agregarEtiqueta()" />
+          </div>
+        </div>
+        <label>URL en la tienda <small class="tenue">(se genera sola del nombre)</small>
+          <span class="campo-prefijo"><span>/producto/</span><input name="slug" [(ngModel)]="form.slug" placeholder="nombre-del-producto" /></span>
+        </label>
+      </section>
+
+      <section class="panel">
+        <div class="panel-titulo">
+          <h2>Fotos <small class="tenue">{{ imagenes().length }}</small></h2>
+          <small class="tenue">La primera es la portada. Arrastra para ordenar.</small>
+        </div>
+        @if (!id()) {
+          <p class="tenue">Guarda el producto para poder subir sus fotos.</p>
+        } @else {
+          <div class="galeria-admin">
+            @for (img of imagenes(); track img.id; let i = $index; let ultimo = $last) {
+              <figure draggable="true" (dragstart)="inicioArrastre(i)" (dragover)="$event.preventDefault()" (drop)="soltarEn(i, $event)" [class.portada]="i === 0">
+                <img [src]="img.miniatura" [alt]="'Foto ' + (i + 1)" width="160" height="160" />
+                @if (i === 0) { <span class="insignia">Portada</span> }
+                <figcaption>
+                  <button type="button" class="btn-icono" (click)="mover(i, -1)" [disabled]="i === 0" aria-label="Mover a la izquierda"><app-icono nombre="izquierda" [tamano]="16" /></button>
+                  @if (i !== 0) { <button type="button" class="btn-icono" (click)="portada(i)" aria-label="Usar como portada"><app-icono nombre="estrella" [tamano]="16" /></button> }
+                  <button type="button" class="btn-icono" (click)="mover(i, 1)" [disabled]="ultimo" aria-label="Mover a la derecha"><app-icono nombre="derecha" [tamano]="16" /></button>
+                  <button type="button" class="btn-icono peligro" (click)="quitarImagen(img)" aria-label="Quitar foto"><app-icono nombre="basura" [tamano]="16" /></button>
+                </figcaption>
+              </figure>
+            }
+            <label class="zona-subida" [class.activa]="arrastrando()" (dragover)="$event.preventDefault(); arrastrando.set(true)"
+              (dragleave)="arrastrando.set(false)" (drop)="soltar($event)">
+              <input type="file" accept="image/jpeg,image/png,image/webp" multiple (change)="elegir($event)" [disabled]="subiendo() > 0" />
+              @if (subiendo()) {
+                <span class="girando"></span><span>Subiendo {{ subiendo() }}…</span>
+              } @else {
+                <app-icono nombre="subir" [tamano]="28" /><span>Subir fotos</span><small>JPG, PNG o WebP · hasta 8 MB</small>
+              }
+            </label>
+          </div>
+        }
+      </section>
+    </div>
+
+    <aside class="form-columna lateral">
+      <section class="panel">
+        <h2>Precio y stock</h2>
+        <div class="dos-columnas">
+          <label>Precio (S/)
+            <input name="precio" type="number" min="0" step="0.01" required [(ngModel)]="form.precio" />
+          </label>
+          <label>Descuento (%)
+            <input name="descuento" type="number" min="0" max="99" [(ngModel)]="form.descuento" />
+          </label>
+        </div>
+        @if (form.descuento) { <p class="tenue">Precio final: <b>{{ precioFinal() | soles }}</b></p> }
+        <div class="dos-columnas">
+          <label>Costo manufactura (S/)
+            <input name="costo" type="number" min="0" step="0.01" placeholder="Ej. 12.50" [(ngModel)]="form.costo" />
+          </label>
+          <label>Costo extra (S/)
+            <input name="costo_extra" type="number" min="0" step="0.01" [(ngModel)]="form.costo_extra" />
+          </label>
+        </div>
+        @if (analisis(); as a) {
+          <div class="formula compacta">
+            <div><span>Costo unitario (con flete, aduana y empaque)</span><b>{{ a.unitario | soles }}</b></div>
+            <div><span>Ganancia por unidad</span><b [class.negativo]="a.ganancia < 0">{{ a.ganancia | soles }}</b></div>
+            <div><span>Margen</span><span class="pildora-margen" [class.bajo]="(a.margen ?? 0) < a.objetivo">{{ a.margen ?? '—' }}%</span></div>
+            @if (a.sugerido) {
+              <div><span>Precio sugerido ({{ a.objetivo }}% margen)</span>
+                <button type="button" class="btn pequeno-btn" (click)="usarSugerido()">Usar {{ a.sugerido | soles }}</button></div>
+            }
+          </div>
+        } @else {
+          <p class="tenue pequeno">Ingresa el costo para calcular la ganancia y un precio sugerido. <a routerLink="/admin/costos" class="enlace">Ver fórmula</a></p>
+        }
+        <label>Stock
+          <input name="stock" type="number" min="0" [(ngModel)]="form.stock" />
+        </label>
+        <label>Estado
+          <select name="estado" [(ngModel)]="form.estado">
+            <option value="disponible">Disponible</option>
+            <option value="a_pedido">A pedido</option>
+            <option value="agotado">Agotado</option>
+          </select>
+        </label>
+        <label>Condición
+          <select name="condicion" [(ngModel)]="form.condicion">
+            <option value="nuevo">Nuevo</option>
+            <option value="usado">Usado</option>
+          </select>
+        </label>
+      </section>
+      <section class="panel">
+        <h2>Visibilidad</h2>
+        <label class="casilla"><input type="checkbox" name="activo" [(ngModel)]="form.activo" /> Visible en la tienda</label>
+        <label class="casilla"><input type="checkbox" name="destacado" [(ngModel)]="form.destacado" /> Destacado en la portada</label>
+      </section>
+
+      @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+      @if (mensaje()) { <p class="exito-texto" role="status">{{ mensaje() }}</p> }
+      <div class="acciones-form">
+        <button type="submit" class="btn primario grande ancho" [disabled]="guardando()">{{ guardando() ? 'Guardando…' : 'Guardar' }}</button>
+        @if (id()) { <button type="button" class="btn peligro ancho" (click)="eliminar()"><app-icono nombre="basura" [tamano]="18" /> Eliminar producto</button> }
+      </div>
+    </aside>
+  </form>
+}

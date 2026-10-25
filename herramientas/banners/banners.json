@@ -1,0 +1,29 @@
+[
+  {
+    "titulo": "Tarjetas NFC desde S/ 10",
+    "subtitulo": "Comparte tu contacto, redes o Wi-Fi con solo acercar el celular.",
+    "boton": "Ver tarjetas NFC",
+    "enlace": "/categoria/nfc",
+    "imagen": "nfc.jpg",
+    "imagen_movil": "nfc-movil.jpg",
+    "tema": "claro"
+  },
+  {
+    "titulo": "Cámaras para tu auto",
+    "subtitulo": "Graba cada viaje en HD, de día y de noche. Seguridad que se instala en minutos.",
+    "boton": "Ver cámaras",
+    "enlace": "/categoria/tecnologia",
+    "imagen": "autos.jpg",
+    "imagen_movil": "autos-movil.jpg",
+    "tema": "claro"
+  },
+  {
+    "titulo": "Figuras para coleccionar",
+    "subtitulo": "Anime y videojuegos: Nier Automata, Pokémon y más. Unidades limitadas.",
+    "boton": "Ver figuras",
+    "enlace": "/categoria/figuras-de-accion",
+    "imagen": "figuras.jpg",
+    "imagen_movil": "figuras-movil.jpg",
+    "tema": "claro"
+  }
+]

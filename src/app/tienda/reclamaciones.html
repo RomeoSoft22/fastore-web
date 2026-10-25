@@ -1,0 +1,87 @@
+@let l = config()?.legal;
+<div class="contenedor pagina-legal">
+  <nav class="migas" aria-label="Ruta"><a routerLink="/">Inicio</a><span>/</span><b>Libro de Reclamaciones</b></nav>
+
+  @if (registrado(); as r) {
+    <div class="panel vacio exito">
+      <span class="exito-icono"><app-icono nombre="check" [tamano]="40" /></span>
+      <h1>Hoja de reclamación registrada</h1>
+      <p>Tu código es</p>
+      <p class="codigo-cotizacion">{{ r.codigo }}</p>
+      <p>Registrada el {{ r.creado | date: 'dd/MM/yyyy HH:mm' }}. Te responderemos al correo <b>{{ form.correo }}</b> a más tardar el
+        <b>{{ r.vence | date: 'dd/MM/yyyy' }}</b> ({{ l?.plazo_reclamo_dias }} días hábiles). Guarda o imprime esta constancia.</p>
+      <button type="button" class="btn no-imprimir" (click)="imprimir()">Imprimir constancia</button>
+    </div>
+  } @else {
+    <article class="panel texto-legal libro">
+      <header class="libro-cabecera">
+        <div>
+          <h1>Libro de Reclamaciones</h1>
+          <p class="tenue">Conforme a lo establecido en el Código de Protección y Defensa del Consumidor (Ley 29571), esta tienda cuenta con un Libro de Reclamaciones virtual.</p>
+        </div>
+        <div class="libro-fecha"><span>Fecha</span><b>{{ hoy | date: 'dd/MM/yyyy' }}</b></div>
+      </header>
+      <dl class="datos-proveedor">
+        <div><dt>Proveedor</dt><dd>{{ l?.titular }} — FAStore</dd></div>
+        @if (l?.documento) { <div><dt>RUC</dt><dd>{{ l?.documento }}</dd></div> }
+        <div><dt>Domicilio</dt><dd>{{ l?.domicilio }}</dd></div>
+        <div><dt>Correo</dt><dd>{{ l?.correo }}</dd></div>
+      </dl>
+
+      <form (submit)="$event.preventDefault(); enviar()">
+        <h2>1. Identificación del consumidor reclamante</h2>
+        <label>Nombre completo <input name="nombre" required maxlength="150" autocomplete="name" [(ngModel)]="form.nombre" /></label>
+        <div class="dos-columnas">
+          <label>Tipo de documento
+            <select name="documento_tipo" [(ngModel)]="form.documento_tipo">
+              <option>DNI</option><option value="CE">Carné de extranjería</option><option>Pasaporte</option><option>RUC</option>
+            </select>
+          </label>
+          <label>N° de documento <input name="documento" required maxlength="20" [(ngModel)]="form.documento" /></label>
+          <label>Teléfono <input name="telefono" type="tel" required maxlength="20" autocomplete="tel" [(ngModel)]="form.telefono" /></label>
+          <label>Correo electrónico <input name="correo" type="email" required maxlength="150" autocomplete="email" [(ngModel)]="form.correo" /></label>
+        </div>
+        <label>Domicilio <input name="domicilio" required maxlength="255" autocomplete="street-address" [(ngModel)]="form.domicilio" /></label>
+        <label>Padre, madre o apoderado <small class="tenue">(solo si el consumidor es menor de edad)</small>
+          <input name="apoderado" maxlength="150" [(ngModel)]="form.apoderado" /></label>
+
+        <h2>2. Identificación del bien contratado</h2>
+        <div class="dos-columnas">
+          <label>Tipo
+            <select name="bien" [(ngModel)]="form.bien"><option value="producto">Producto</option><option value="servicio">Servicio</option></select>
+          </label>
+          <label>Monto reclamado (S/) <input name="monto" type="number" min="0" step="0.01" [(ngModel)]="form.monto" /></label>
+        </div>
+        <label>N° de cotización o pedido <small class="tenue">(si lo tienes)</small>
+          <input name="pedido_ref" maxlength="40" placeholder="COT-00012-K7QM" [(ngModel)]="form.pedido_ref" /></label>
+        <label>Descripción del producto o servicio <textarea name="descripcion_bien" rows="2" required maxlength="2000" [(ngModel)]="form.descripcion_bien"></textarea></label>
+
+        <h2>3. Detalle de la reclamación</h2>
+        <fieldset class="opciones-entrega">
+          <legend>Tipo</legend>
+          <label class="opcion-entrega" [class.elegida]="form.tipo === 'reclamo'">
+            <input type="radio" name="tipo" value="reclamo" [(ngModel)]="form.tipo" />
+            <span><b>Reclamo</b><small>Disconformidad relacionada con los productos o servicios.</small></span>
+          </label>
+          <label class="opcion-entrega" [class.elegida]="form.tipo === 'queja'">
+            <input type="radio" name="tipo" value="queja" [(ngModel)]="form.tipo" />
+            <span><b>Queja</b><small>Disconformidad no relacionada con los productos o servicios, o malestar respecto a la atención al público.</small></span>
+          </label>
+        </fieldset>
+        <label>Detalle <textarea name="detalle" rows="4" required maxlength="5000" [(ngModel)]="form.detalle"></textarea></label>
+        <label>Pedido del consumidor <small class="tenue">(qué solución esperas)</small>
+          <textarea name="pedido_consumidor" rows="3" required maxlength="3000" [(ngModel)]="form.pedido_consumidor"></textarea></label>
+
+        <label class="casilla aceptacion">
+          <input type="checkbox" name="acepta" [(ngModel)]="form.acepta" />
+          <span>Declaro que los datos son verdaderos y autorizo su uso para atender esta reclamación, según la <a routerLink="/legal/privacidad">política de privacidad</a>.</span>
+        </label>
+        <p class="tenue pequeno">La formulación del reclamo no impide acudir a otras vías de solución de controversias ni es requisito previo para interponer una denuncia ante
+          el INDECOPI. El proveedor deberá dar respuesta al reclamo en un plazo no mayor a {{ l?.plazo_reclamo_dias ?? 15 }} días hábiles.</p>
+
+        @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+        <button type="submit" class="btn primario grande" [disabled]="enviando()">{{ enviando() ? 'Registrando…' : 'Registrar hoja de reclamación' }}</button>
+      </form>
+    </article>
+  }
+</div>

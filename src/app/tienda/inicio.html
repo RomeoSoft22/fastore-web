@@ -1,0 +1,88 @@
+@if (banners().length) {
+  <section class="carrusel" aria-roledescription="carrusel" aria-label="Promociones"
+    (touchstart)="inicioToque($event)" (touchend)="finToque($event)">
+    @for (b of banners(); track b.id; let i = $index) {
+      <div class="diapositiva" [class.visible]="i === actual()" [class.oscuro]="b.tema === 'oscuro'"
+        [attr.aria-hidden]="i !== actual()" role="group" [attr.aria-label]="(i + 1) + ' de ' + banners().length">
+        <picture>
+          @if (b.imagen_movil) { <source media="(max-width: 700px)" [srcset]="b.imagen_movil" /> }
+          <img [src]="b.imagen" [alt]="b.titulo" [attr.fetchpriority]="i === 0 ? 'high' : null" [attr.loading]="i === 0 ? 'eager' : 'lazy'" />
+        </picture>
+        <div class="contenedor diapositiva-texto">
+          <h2>{{ b.titulo }}</h2>
+          @if (b.subtitulo) { <p>{{ b.subtitulo }}</p> }
+          @if (b.boton && b.enlace) {
+            @if (externo(b)) {
+              <a class="btn primario grande" [href]="b.enlace" target="_blank" rel="noopener" [tabindex]="i === actual() ? 0 : -1">{{ b.boton }}</a>
+            } @else {
+              <a class="btn primario grande" [routerLink]="b.enlace" [tabindex]="i === actual() ? 0 : -1">{{ b.boton }}</a>
+            }
+          }
+        </div>
+      </div>
+    }
+    @if (banners().length > 1) {
+      <button type="button" class="carrusel-flecha izq" (click)="mover(-1)" aria-label="Anterior"><app-icono nombre="izquierda" /></button>
+      <button type="button" class="carrusel-flecha der" (click)="mover(1)" aria-label="Siguiente"><app-icono nombre="derecha" /></button>
+      <div class="carrusel-puntos">
+        @for (b of banners(); track b.id; let i = $index) {
+          <button type="button" [class.activo]="i === actual()" (click)="actual.set(i)" [attr.aria-label]="'Ir a ' + b.titulo"></button>
+        }
+      </div>
+    }
+  </section>
+} @else if (datos()) {
+  <section class="heroe">
+    <div class="contenedor">
+      <h1>Tecnología y coleccionables, <span>entregados en tu estación</span></h1>
+      <p>Tarjetas NFC, cámaras para auto, figuras de acción y más. Pide por WhatsApp y recógelo en el Metro de Lima.</p>
+      <a routerLink="/tienda" class="btn primario grande">Ver catálogo</a>
+    </div>
+  </section>
+} @else {
+  <div class="carrusel cargando"></div>
+}
+
+<section class="contenedor beneficios" aria-label="Beneficios">
+  <div><app-icono nombre="tren" [tamano]="26" /><span><b>Entrega gratis</b>en estaciones del Metro</span></div>
+  <div><app-icono nombre="tarjeta" [tamano]="26" /><span><b>Yape y Plin</b>o efectivo contra entrega</span></div>
+  <div><app-icono nombre="whatsapp" [tamano]="26" /><span><b>Atención directa</b>por WhatsApp</span></div>
+  <div><app-icono nombre="escudo" [tamano]="26" /><span><b>Productos nuevos</b>revisados antes de entregar</span></div>
+</section>
+
+<section class="contenedor seccion">
+  <div class="seccion-titulo">
+    <h2>Categorías</h2>
+    <a routerLink="/tienda">Ver todo <app-icono nombre="derecha" [tamano]="16" /></a>
+  </div>
+  <div class="categorias-grilla">
+    @for (c of datos()?.categorias ?? []; track c.id) {
+      <a class="categoria-tile" [routerLink]="['/categoria', c.slug]">
+        <span class="categoria-icono"><app-icono [nombre]="iconos[c.slug] || 'caja'" [tamano]="28" /></span>
+        <b>{{ c.nombre }}</b>
+        <small>{{ c.total }} producto{{ c.total === 1 ? '' : 's' }}</small>
+      </a>
+    }
+  </div>
+</section>
+
+<section class="contenedor seccion">
+  <div class="seccion-titulo">
+    <h2>Destacados</h2>
+    <a routerLink="/tienda">Ver catálogo <app-icono nombre="derecha" [tamano]="16" /></a>
+  </div>
+  <div class="grilla-productos">
+    @for (p of datos()?.destacados ?? []; track p.id) { <app-tarjeta-producto [producto]="p" /> }
+    @empty { @for (i of [1, 2, 3, 4]; track i) { <div class="tarjeta esqueleto"></div> } }
+  </div>
+</section>
+
+<section class="contenedor seccion">
+  <div class="seccion-titulo">
+    <h2>Recién llegados</h2>
+    <a routerLink="/tienda" [queryParams]="{ orden: 'nuevos' }">Ver más <app-icono nombre="derecha" [tamano]="16" /></a>
+  </div>
+  <div class="grilla-productos">
+    @for (p of datos()?.novedades ?? []; track p.id) { <app-tarjeta-producto [producto]="p" /> }
+  </div>
+</section>
